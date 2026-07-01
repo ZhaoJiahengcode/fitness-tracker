@@ -155,6 +155,7 @@ function defaultDayState(day) {
       exercises[exercise.id] = {
         actualReps: Array.from({ length: exercise.targetSets }, () => ""),
         currentSet: 1,
+        startedSet: null,
         completedSets: [],
         done: false,
       };
@@ -271,9 +272,11 @@ function renderActivePanel() {
 
   const currentState = selectedDayState().exercises[current.id];
   const isStrength = current.type === "strength";
+  const isResting = timer.exerciseId === current.id && timer.remaining > 0;
+  const isSetStarted = isStrength && currentState.startedSet === currentState.currentSet;
   const timerText = timer.exerciseId === current.id && timer.remaining > 0 ? formatTime(timer.remaining) : formatTime(current.restSeconds || 0);
-  const timerLabel = timer.exerciseId === current.id && timer.remaining > 0 ? "休息倒计时" : isStrength ? "组间休息" : "无需倒计时";
-  const timerHint = timer.exerciseId === current.id && timer.remaining > 0 ? "倒计时结束后会提示开始下一组。" : isStrength ? "完成一组后会自动开始。" : "有氧完成后在动作卡片里勾选即可。";
+  const timerLabel = isResting ? "休息倒计时" : isStrength && isSetStarted ? "本组进行中" : isStrength ? "组间休息" : "无需倒计时";
+  const timerHint = isResting ? "倒计时结束后会提示开始下一组。" : isStrength && isSetStarted ? "做完后点完成本组。" : isStrength ? "准备好后点开始本组。" : "有氧完成后在动作卡片里勾选即可。";
 
   activePanel.innerHTML = `
     <div>
@@ -289,7 +292,8 @@ function renderActivePanel() {
       </div>
       ${current.note ? `<p class="exercise-subtitle" style="margin-top:12px">${current.note}</p>` : ""}
       <div class="action-row">
-        <button class="primary-button" type="button" id="completeSetButton" ${!isStrength || currentState.done ? "disabled" : ""}>完成本组</button>
+        <button class="primary-button" type="button" id="startSetButton" ${!isStrength || currentState.done || isResting || isSetStarted ? "disabled" : ""}>开始本组</button>
+        <button class="primary-button complete-button" type="button" id="completeSetButton" ${!isStrength || currentState.done || !isSetStarted ? "disabled" : ""}>完成本组</button>
         <button class="secondary-button" type="button" id="skipRestButton" ${timer.exerciseId === current.id && timer.remaining > 0 ? "" : "disabled"}>跳过休息</button>
       </div>
     </div>
@@ -302,6 +306,7 @@ function renderActivePanel() {
     </div>
   `;
 
+  document.querySelector("#startSetButton").addEventListener("click", () => startSet(current));
   document.querySelector("#completeSetButton").addEventListener("click", () => completeSet(current));
   document.querySelector("#skipRestButton").addEventListener("click", stopTimer);
 }
@@ -336,12 +341,13 @@ function strengthCardHtml(exercise, exerciseState) {
     const setNumber = index + 1;
     const isDone = exerciseState.completedSets.includes(setNumber);
     const isCurrent = exerciseState.currentSet === setNumber && !exerciseState.done;
+    const isStarted = exerciseState.startedSet === setNumber && isCurrent;
     const target = exercise.setTargets[index] ?? exercise.targetReps;
     const actual = exerciseState.actualReps[index] || "";
     return `
-      <div class="set-chip ${isDone ? "done" : ""} ${isCurrent ? "current" : ""}">
+      <div class="set-chip ${isDone ? "done" : ""} ${isCurrent ? "current" : ""} ${isStarted ? "started" : ""}">
         第${setNumber}组 · 目标${target}<br />
-        实际：${actual || "未填"}
+        ${isStarted ? "进行中" : `实际：${actual || "未填"}`}
       </div>
     `;
   }).join("");
@@ -416,6 +422,14 @@ function bindStrengthInputs(card, exercise, exerciseState) {
   });
 }
 
+function startSet(exercise) {
+  const exerciseState = selectedDayState().exercises[exercise.id];
+  exerciseState.startedSet = exerciseState.currentSet;
+  saveState();
+  render();
+  showToast(`${exercise.name} 第${exerciseState.currentSet}组开始`);
+}
+
 function bindCardioInputs(card, exercise) {
   card.querySelectorAll("[data-cardio-field]").forEach((input) => {
     input.addEventListener("input", () => updateCardio(exercise.id, input, false));
@@ -436,6 +450,11 @@ function completeSet(exercise) {
   const exerciseState = selectedDayState().exercises[exercise.id];
   const setNumber = exerciseState.currentSet;
 
+  if (exerciseState.startedSet !== setNumber) {
+    showToast("先点开始本组");
+    return;
+  }
+
   if (!exerciseState.actualReps[setNumber - 1]) {
     const target = exercise.setTargets[setNumber - 1] ?? exercise.targetReps;
     exerciseState.actualReps[setNumber - 1] = String(target).split("-")[0].trim();
@@ -447,11 +466,13 @@ function completeSet(exercise) {
 
   if (setNumber >= exercise.targetSets) {
     exerciseState.done = true;
+    exerciseState.startedSet = null;
     stopTimer(false);
     maybeAdvanceBenchStage(exercise, exerciseState);
     showToast(`${exercise.name} 已完成`);
   } else {
     exerciseState.currentSet += 1;
+    exerciseState.startedSet = null;
     startTimer(exercise.id, exercise.restSeconds);
     showToast(`第${setNumber}组已记录，开始休息`);
   }
@@ -480,6 +501,7 @@ function tickTimer() {
     const exercise = selectedDay().exercises.find((item) => item.id === timer.exerciseId);
     stopTimer(false);
     showToast(exercise ? `${exercise.name} 休息结束，可以开始下一组` : "休息结束");
+    render();
   }
 }
 

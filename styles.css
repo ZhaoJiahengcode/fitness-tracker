@@ -244,7 +244,7 @@ h2 {
 
 .action-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
 }
@@ -265,6 +265,10 @@ h2 {
 .primary-button:disabled {
   background: #b7c8c2;
   cursor: not-allowed;
+}
+
+.complete-button {
+  background: var(--done);
 }
 
 .secondary-button {
