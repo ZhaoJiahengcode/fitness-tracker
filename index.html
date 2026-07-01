@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>7天训练记录</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">本地训练记录</p>
+          <h1>7天训练计划</h1>
+        </div>
+        <button class="icon-button" id="resetTodayButton" type="button" title="重置当天">
+          ↻
+        </button>
+      </header>
+
+      <section class="day-strip" id="dayStrip" aria-label="选择训练日"></section>
+
+      <section class="active-panel" id="activePanel"></section>
+
+      <section class="content-grid">
+        <div class="section-block">
+          <div class="section-heading">
+            <h2>动作列表</h2>
+            <span id="completionSummary"></span>
+          </div>
+          <div class="exercise-list" id="exerciseList"></div>
+        </div>
+
+        <aside class="section-block progress-panel">
+          <div class="section-heading">
+            <h2>卧推进步路线</h2>
+            <span id="benchStageBadge"></span>
+          </div>
+          <div id="benchProgress"></div>
+        </aside>
+      </section>
+
+      <section class="section-block history-panel">
+        <div class="section-heading">
+          <h2>训练历史</h2>
+          <button class="text-button" id="clearHistoryButton" type="button">清空历史</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
